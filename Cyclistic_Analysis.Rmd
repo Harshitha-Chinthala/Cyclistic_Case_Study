@@ -1,0 +1,156 @@
+---
+title: "Cyclistic Bike Share Analysis"
+author: "Harshitha"
+date: "2025-02-24"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Business Task Statement
+Cyclistic wants to increase its revenue by converting casual riders into annual members. To achieve this, we will analyze historical ride data to understand how these two groups use the service differently. The insights will help shape a targeted marketing strategy.
+
+```{r include=FALSE}
+#Load the Packages
+library(tidyverse)
+library(readr)
+library(lubridate)
+library(rmarkdown)
+library(ggplot2)
+library(dplyr)
+library(tinytex)
+
+#Set the working directory
+setwd("C:/Users/chint/OneDrive/Documents/Cyclistic_Case_Study/Raw_Data")
+getwd()
+
+#List all CSV files in the Raw_Data folder
+file_list <- list.files(pattern="2023.*.csv")
+
+#Read and merge all the files into one data set
+cyclistic_data <- file_list %>% 
+  map_df(~ read.csv(.))
+
+#View data set
+View(cyclistic_data)
+
+#Checking missing values for each column
+cyclistic_data[cyclistic_data == ""] <- NA
+cyclistic_data[cyclistic_data == "NULL"] <- NA
+colSums(is.na(cyclistic_data))
+
+#Converting started_at and ended_at to proper datetime format
+cyclistic_data$started_at <- ymd_hms(cyclistic_data$started_at)
+cyclistic_data$ended_at <- ymd_hms(cyclistic_data$ended_at)
+
+#Calculating ride_length
+cyclistic_data$ride_length <- as.numeric(cyclistic_data$ended_at - cyclistic_data$started_at, units = "mins")
+
+#View summary statistics for ride_length
+summary(cyclistic_data$ride_length)
+
+#Extract the day_of_week from the started_at
+cyclistic_data$day_of_week <- weekdays(cyclistic_data$started_at)
+cyclistic_data$day_of_week <- factor(cyclistic_data$day_of_week, levels=c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"))
+
+#Display the count of rides for each day_of_week
+table(cyclistic_data$day_of_week)
+
+#Remove negative or zero ride_length
+cyclistic_data <- cyclistic_data %>% 
+  filter(ride_length > 0)
+
+#Check the updated data
+summary(cyclistic_data$ride_length)
+
+#Extract hour
+cyclistic_data$hour <- format(cyclistic_data$started_at,"%H")
+
+#Extract month
+cyclistic_data$month <- format(cyclistic_data$started_at,"%B")
+cyclistic_data$month <- factor(cyclistic_data$month, levels=c("January","February","March","April","May","June","July","August","September","October","November","December"))
+
+```
+
+
+## Total Rides by User Type
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_bar(mapping=aes(x=member_casual,fill=member_casual)) +
+  labs(title="Total Rides by User Type",x="User Type",y="Count of Rides") +
+  scale_y_continuous(labels=scales::comma)
+```
+
+The bar chart shows that **Members** take more rides than casual riders.
+
+## Total Rides by Bike Type
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_bar(mapping=aes(x=rideable_type,fill=rideable_type)) +
+  labs(title="Total Rides by Bike Type",fill="Bike Type")+
+  scale_y_continuous(labels=scales::comma)
+```
+
+**Electric Bikes** and **Classic Bikes** are widely used, while Docked Bikes have significantly fewer riders.
+
+## Total Rides by Weekday
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_bar(mapping=aes(x=day_of_week,fill=member_casual),position="dodge") +
+  labs(title="Total Rides by the Day of the Week",x="Day of the Week",y="Count of Rides")
+```
+
+Mid-week days have the highest number of rides.
+
+## Seasonal Trends - Monthly Ride Activity
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_line(mapping=aes(x=month,group=member_casual,color=member_casual),stat="count",linewidth=1.5) +
+  labs(title="Total Rides by Month",x="Month",y="Count of Rides") +
+  scale_y_continuous(labels=scales::comma) +
+  theme(axis.text.x = element_text(angle=45,hjust=1))
+```
+
+Bike usage peaks in summer and drops in winter.
+
+## Total Rides by Hour
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_line(mapping=aes(x=hour,group=member_casual,color=member_casual),stat="count",linewidth=1.5) +
+  labs(title="Total Rides by Hour",x="Hour of the Day",y="Count of Rides") +
+  scale_y_continuous(labels=scales::comma)
+```
+
+**5 pm** is the peak usage hour.
+
+## Average Ride Duration by User Type
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_bar(mapping=aes(x=member_casual,y=ride_length,fill=member_casual),stat='summary',fun="mean")+
+  labs(title="Average Ride Length by User Type",x="User Type",y="Avg Ride Length (mins)")
+```
+
+**Casual Riders** take longer rides on average than Members.
+
+## Average Ride Length by User Type and Weekday
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_bar(mapping=aes(x=day_of_week,y=ride_length,fill=member_casual),stat="summary",fun="mean",position="dodge") +
+  labs(title="Average Ride Length by User Type & Weekday",x="Day of the Week",y="Avg Ride Length(mins)")
+```
+
+Casual Riders take the longest rides, while Member ride lengths are shorter and more consistent throughout the week.
+
+## Total Rides by User Type and Weekday
+```{r}
+ggplot(data=cyclistic_data) +
+  geom_bar(mapping=aes(x=day_of_week,fill=member_casual))+
+  labs(title="Total Rides by User Type & Weekday",x="Day of Week",y="Count of Rides")
+```
+
+Members ride consistently throughout the week.
+Casual riders take more rides on weekends.
+
+
+
+
